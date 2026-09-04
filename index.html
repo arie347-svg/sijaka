@@ -851,8 +851,6 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbzH0WNCTR_tOHNdG_X-E_dKekpdBCTA5UEbTBKzsVdg51bk2Y6-mK8UxURJUWkAHiDOrA/exec";
 
     // ================= UNIVERSAL GAS/STANDALONE BRIDGE =================
-    // Mendukung pemanggilan model Apps Script .withSuccessHandler().actionName()
-    // sehingga dapat berjalan langsung di GitHub Pages tanpa error runtime.
     function createGasBridge() {
       return new Proxy({}, {
         get(target, prop) {
@@ -897,12 +895,15 @@
                     payload.dateStr = args[0];
                     payload.unitCount = args[1];
                     payload.schedule = args[2];
+                    payload.assignments = args[2];
                     payload.currentAdminSchedule = args[2];
                     payload.refInputs = args[3];
+                    payload.refDetails = args[3];
                   } else if (actionName === 'getAllMembersMaster') {
                     payload.dateStr = args[0];
                   } else if (actionName === 'saveMasterSettings') {
                     payload.settings = args[0];
+                    payload.settingsObj = args[0];
                   } else if (actionName === 'saveMember') {
                     payload.memberObj = args[0];
                     payload.member = args[0];
@@ -919,9 +920,21 @@
                   const res = await fetch(API_URL, {
                     method: "POST",
                     body: JSON.stringify(payload),
-                    headers: { "Content-Type": "text/plain;charset=utf-8" }
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    redirect: "follow"
                   });
-                  const json = await res.json();
+
+                  const rawText = await res.text();
+                  let json;
+                  try {
+                    json = JSON.parse(rawText);
+                  } catch (parseErr) {
+                    if (rawText.includes("<!DOCTYPE") || rawText.includes("<html")) {
+                      throw new Error("Izin Apps Script belum dibuka ke 'Anyone'. Periksa Deployment Web App.");
+                    }
+                    throw new Error("Respon server bukan JSON: " + rawText.slice(0, 80));
+                  }
+
                   if (onSuccess) onSuccess(json);
                   return json;
                 } catch (err) {
@@ -1061,7 +1074,19 @@
       apiCall
         .withSuccessHandler(res => {
           if (syncDot) syncDot.classList.add('hidden');
-          if (!res.success) { showToast(res.message, 'error'); return; }
+          if (!res.success) { 
+            showToast(res.message, 'error'); 
+            document.getElementById('listPublicMembers').innerHTML = `
+              <div class="text-center py-8 space-y-2">
+                <i class="fa-solid fa-circle-exclamation text-brand-red text-2xl"></i>
+                <p class="text-xs font-bold text-slate-700">${res.message}</p>
+                <button type="button" onclick="loadPublicDataSWR()" class="px-3.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl active:scale-95 transition-all cursor-pointer">
+                  Coba Lagi
+                </button>
+              </div>
+            `;
+            return; 
+          }
           
           localStorage.setItem(cacheKey, JSON.stringify(res));
           currentDashboardData = res;
@@ -1069,7 +1094,17 @@
         })
         .withFailureHandler(err => {
           if (syncDot) syncDot.classList.add('hidden');
-          showToast(err.message, 'error');
+          showToast(err.message || 'Gagal memuat data', 'error');
+          document.getElementById('listPublicMembers').innerHTML = `
+            <div class="text-center py-8 space-y-2">
+              <i class="fa-solid fa-triangle-exclamation text-amber-500 text-2xl"></i>
+              <p class="text-xs font-bold text-slate-700">Gagal terhubung ke database Apps Script</p>
+              <p class="text-[10px] text-slate-400 px-4">${err.message || 'Periksa koneksi atau izin deployment Web App.'}</p>
+              <button type="button" onclick="loadPublicDataSWR()" class="px-3.5 py-1.5 bg-brand-red text-white text-xs font-bold rounded-xl active:scale-95 transition-all cursor-pointer">
+                Muat Ulang
+              </button>
+            </div>
+          `;
         })
         .getDashboardData(dateStr);
     }
