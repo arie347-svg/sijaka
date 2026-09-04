@@ -1220,7 +1220,7 @@ async function apiCall(action, payload = {}) {
       const dateStr = document.getElementById('selectedDateAdmin').value;
       if (!dateStr) return;
 
-      apiCall
+      google.script.run
         .withSuccessHandler(res => {
           if (res.success) {
             currentDashboardData = res;
@@ -1501,7 +1501,7 @@ async function apiCall(action, payload = {}) {
 
     function loadMasterMembers() {
       const dateStr = document.getElementById('selectedDateAdmin').value;
-      gapiCall
+      apiCall
         .withSuccessHandler(members => {
           masterMembersList = members;
           const tbody = document.getElementById('masterMembersTable');
@@ -1566,7 +1566,7 @@ async function apiCall(action, payload = {}) {
 
       setButtonLoading(btn, true, 'Menyimpan...');
 
-      apiCall
+      google.script.run
         .withSuccessHandler(res => {
           setButtonLoading(btn, false);
           if (res.success) {
@@ -1613,7 +1613,7 @@ async function apiCall(action, payload = {}) {
 
       setButtonLoading(btn, true, 'Menyimpan...');
 
-      apiCall
+      google.script.run
         .withSuccessHandler(res => {
           setButtonLoading(btn, false);
           if (res.success) {
